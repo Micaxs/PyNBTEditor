@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtCore import Qt, QRect
-from PyQt5.QtWidgets import QAbstractItemView, QStyledItemDelegate, QToolBar, QAction, QApplication, QWidget, QVBoxLayout, QFileDialog, QLineEdit, QTreeWidget, QTreeWidgetItem, QTreeWidgetItemIterator, QLabel, QStyle
+from PyQt5.QtWidgets import QAbstractItemView, QStyledItemDelegate, QToolBar, QAction, QApplication, QWidget, QVBoxLayout, QFileDialog, QLineEdit, QTreeWidget, QTreeWidgetItem, QTreeWidgetItemIterator, QLabel, QStyle, QMenu, QDialog, QPushButton, QInputDialog
 from PyQt5.QtGui import QBrush, QColor, QIcon, QPen
 from nbt import nbt
 import gzip
@@ -86,20 +86,25 @@ class NBTViewer(QWidget):
         """)
         self.toolbar = QToolBar()
         self.layout.addWidget(self.toolbar)
+
         openAction = QAction(QIcon('open.png'), 'Open', self)
         openAction.triggered.connect(self.openFile)
         self.toolbar.addAction(openAction)
+
         saveAction = QAction(QIcon('save.png'), 'Save', self)
         saveAction.triggered.connect(self.saveFile)
         self.toolbar.addAction(saveAction)
+
         closeAction = QAction(QIcon('close.png'), 'Close', self)
         closeAction.triggered.connect(self.closeFile)
         self.toolbar.addAction(closeAction)
         self.toolbar.addSeparator()
+
         expandAllButton = QAction(QIcon('expandall.png'), 'Close', self)
         expandAllButton.triggered.connect(self.expandAll)
         self.toolbar.addAction(expandAllButton)
         self.toolbar.addSeparator()
+
         self.searchField = SearchLineEdit()
         self.searchField.setPlaceholderText('Search...')
         self.searchField.textChanged.connect(self.onSearchInputChanged)
@@ -108,17 +113,21 @@ class NBTViewer(QWidget):
         self.toolbar.addSeparator()
         self.searchResultLabel = QLabel()
         self.toolbar.addWidget(self.searchResultLabel)
+
         searchAction = QAction(QIcon('search.png'), 'Search', self)
         searchAction.triggered.connect(self.search)
         self.toolbar.addAction(searchAction)
+
         self.prevAction = QAction(QIcon('prev.png'), 'Previous', self)
         self.prevAction.triggered.connect(self.prevSearchResult)
         self.prevAction.setEnabled(False)
         self.toolbar.addAction(self.prevAction)
+
         self.nextAction = QAction(QIcon('next.png'), 'Next', self)
         self.nextAction.triggered.connect(self.nextSearchResult)
         self.nextAction.setEnabled(False)
         self.toolbar.addAction(self.nextAction)
+
         self.tree = QTreeWidget()
         self.tree.setColumnCount(2)
         self.tree.setHeaderLabels(["Name", "Value"])
@@ -131,6 +140,9 @@ class NBTViewer(QWidget):
                 height: 30px;
             }
         """)
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self.showContextMenu)
+
         self.layout.addWidget(self.tree)
         self.setLayout(self.layout)
 
@@ -178,7 +190,6 @@ class NBTViewer(QWidget):
                     item.setText(0, f"\u00A0{tag_name}")
                     item.setText(1, str(tag))
                 item.setData(0, Qt.UserRole, tag)
-                item.setFlags(item.flags() | Qt.ItemIsEditable)
         elif isinstance(nbtFile, nbt.TAG_List):
             for i, tag in enumerate(nbtFile):
                 item = QTreeWidgetItem(parent)
@@ -189,13 +200,11 @@ class NBTViewer(QWidget):
                     item.setText(0, f"\u00A0{i}")
                     item.setText(1, str(tag))
                 item.setData(0, Qt.UserRole, tag)
-                item.setFlags(item.flags() | Qt.ItemIsEditable)
         else:
             item = QTreeWidgetItem(parent)
             item.setText(0, f"\u00A0{nbtFile.name}")
             item.setText(1, str(nbtFile.value))
-            item.setData(0, Qt.UserRole, nbtFile) 
-            item.setFlags(item.flags() | Qt.ItemIsEditable)
+            item.setData(0, Qt.UserRole, nbtFile)
 
     def saveFile(self):
         options = QFileDialog.Options()
@@ -266,6 +275,42 @@ class NBTViewer(QWidget):
             if tag is not None:
                 tag.value = item.text(1)
 
+    def showContextMenu(self, position):
+        menu = QMenu()
+        deleteAction = menu.addAction("Delete")
+        editAction = menu.addAction("Edit")
+        action = menu.exec_(self.tree.viewport().mapToGlobal(position))
+        if action == deleteAction:
+            self.deleteItem()
+        elif action == editAction:
+            self.editItem()
+
+    def deleteItem(self):
+        item = self.tree.currentItem()
+        (item.parent() or self.tree).removeChild(item)
+
+    def editItem(self):
+        item = self.tree.currentItem()
+        dialog = QDialog()
+        layout = QVBoxLayout()
+        nameLabel = QLabel("Name")
+        nameEdit = QLineEdit(item.text(0))
+        valueLabel = QLabel("Value")
+        valueEdit = QLineEdit(item.text(1))
+        okButton = QPushButton("OK")
+        cancelButton = QPushButton("Cancel")
+        okButton.clicked.connect(dialog.accept)
+        cancelButton.clicked.connect(dialog.reject)
+        layout.addWidget(nameLabel)
+        layout.addWidget(nameEdit)
+        layout.addWidget(valueLabel)
+        layout.addWidget(valueEdit)
+        layout.addWidget(okButton)
+        layout.addWidget(cancelButton)
+        dialog.setLayout(layout)
+        if dialog.exec_() == QDialog.Accepted:
+            item.setText(0, nameEdit.text())
+            item.setText(1, valueEdit.text())
 
 def main():
     app = QApplication(sys.argv)
