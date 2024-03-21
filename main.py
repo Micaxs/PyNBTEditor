@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtCore import Qt, QRect
-from PyQt5.QtWidgets import QAbstractItemView, QStyledItemDelegate, QToolBar, QAction, QApplication, QWidget, QVBoxLayout, QFileDialog, QLineEdit, QTreeWidget, QTreeWidgetItem, QTreeWidgetItemIterator, QLabel, QStyle, QMenu, QDialog, QPushButton, QInputDialog
+from PyQt5.QtWidgets import QAbstractItemView, QStyledItemDelegate, QToolBar, QAction, QApplication, QWidget, QVBoxLayout, QFileDialog, QLineEdit, QTreeWidget, QTreeWidgetItem, QTreeWidgetItemIterator, QLabel, QStyle, QMenu, QDialog, QGridLayout, QDialogButtonBox
 from PyQt5.QtGui import QBrush, QColor, QIcon, QPen
 from nbt import nbt
 import gzip
@@ -183,6 +183,14 @@ class NBTViewer(QWidget):
             for tag_name in nbtFile:
                 tag = nbtFile[tag_name]
                 item = QTreeWidgetItem(parent)
+                tag_colors = {
+                    "Pos": "#a6e3a1",
+                    "Inventory": "#cba6f7",
+                    "Health": "#f9e2af",
+                }
+
+                if tag_name in tag_colors:
+                    item.setForeground(0, QBrush(QColor(tag_colors[tag_name])))
                 if isinstance(tag, (nbt.TAG_Compound, nbt.TAG_List)):
                     item.setText(0, f"[{len(tag)}] {tag_name}")
                     self.populateTree(tag, item)
@@ -292,21 +300,19 @@ class NBTViewer(QWidget):
     def editItem(self):
         item = self.tree.currentItem()
         dialog = QDialog()
-        layout = QVBoxLayout()
+        layout = QGridLayout()
         nameLabel = QLabel("Name")
         nameEdit = QLineEdit(item.text(0))
         valueLabel = QLabel("Value")
         valueEdit = QLineEdit(item.text(1))
-        okButton = QPushButton("OK")
-        cancelButton = QPushButton("Cancel")
-        okButton.clicked.connect(dialog.accept)
-        cancelButton.clicked.connect(dialog.reject)
-        layout.addWidget(nameLabel)
-        layout.addWidget(nameEdit)
-        layout.addWidget(valueLabel)
-        layout.addWidget(valueEdit)
-        layout.addWidget(okButton)
-        layout.addWidget(cancelButton)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox.accepted.connect(dialog.accept)
+        buttonBox.rejected.connect(dialog.reject)
+        layout.addWidget(nameLabel, 0, 0)
+        layout.addWidget(nameEdit, 0, 1)
+        layout.addWidget(valueLabel, 1, 0)
+        layout.addWidget(valueEdit, 1, 1)
+        layout.addWidget(buttonBox, 2, 0, 1, 2)
         dialog.setLayout(layout)
         if dialog.exec_() == QDialog.Accepted:
             item.setText(0, nameEdit.text())
